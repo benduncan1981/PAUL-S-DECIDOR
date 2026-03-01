@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dishwasher Quest</title>
+<title>Dishwasher Quest – Paul Edition</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -27,29 +27,19 @@ body{
       transparent 4px
     );
 }
-
-/* Headline */
+#frame{
+  border:4px solid #00ffff;
+  box-shadow:0 0 20px #00ffff;
+  height:100%;
+  padding:8px;
+}
 h1,h2{
   margin:5px 0;
   text-align:center;
   text-shadow:0 0 6px #00ffff;
 }
+.hidden{display:none;}
 
-/* Buttons */
-.btn{
-  width:100%;
-  padding:10px;
-  margin:5px 0;
-  background:#202060;
-  border:3px solid #00ffff;
-  color:#f8f8ff;
-  font-size:16px;
-}
-.btn:active{
-  background:#101040;
-}
-
-/* Inputs */
 textarea,input{
   width:100%;
   margin:5px 0;
@@ -59,9 +49,16 @@ textarea,input{
   background:#101020;
   color:#f8f8ff;
 }
-
-/* Layout */
-.hidden{display:none;}
+.btn{
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  background:#202060;
+  border:3px solid #00ffff;
+  color:#f8f8ff;
+  font-size:16px;
+}
+.btn:active{background:#101040;}
 
 .slot-row{
   display:flex;
@@ -81,7 +78,6 @@ textarea,input{
   font-size:15px;
 }
 
-/* Progress bars */
 .barOuter{
   width:100%;
   height:16px;
@@ -94,15 +90,11 @@ textarea,input{
   width:0%;
   background:linear-gradient(90deg,#00ffcc,#00ffff);
 }
-
-/* Info row */
 .infoRow{
   display:flex;
   justify-content:space-between;
   font-size:13px;
 }
-
-/* Results */
 pre{
   white-space:pre-wrap;
   background:#101020;
@@ -110,13 +102,10 @@ pre{
   padding:8px;
   font-size:13px;
 }
-
-/* Tiny CRT glow */
-#frame{
-  border:4px solid #00ffff;
-  box-shadow:0 0 20px #00ffff;
-  height:100%;
-  padding:8px;
+#exportBox{
+  width:100%;
+  height:140px;
+  margin-top:8px;
 }
 </style>
 </head>
@@ -129,16 +118,18 @@ pre{
     <div id="homeScreen">
       <h1>Dishwasher Quest</h1>
       <p style="text-align:center;font-size:13px;">
-        Turn toys into a dishwasher. One decision at a time.
+        Turn toys into space and proof you’re actually doing it.
       </p>
 
       <textarea id="itemInput" rows="8"
         placeholder="Enter toys (one per line)"></textarea>
 
-      <input id="goalInput" type="number"
-        placeholder="Dishwasher goal (£, e.g. 300)">
+      <input id="keepTargetInput" type="number"
+        placeholder="How many toys are allowed to stay? (KEEP target)">
 
       <button class="btn" onclick="startQuest()">Start Quest</button>
+      <button class="btn" onclick="loadSaved()">Load Saved Session</button>
+      <button class="btn" onclick="resetAll()">Reset Everything</button>
     </div>
 
     <!-- GAME -->
@@ -146,11 +137,12 @@ pre{
       <h2>Which toy wins?</h2>
 
       <div class="infoRow">
-        <div>Dishwasher Fund: £<span id="fundDisplay">0</span></div>
-        <div>Goal: £<span id="goalDisplay">0</span></div>
+        <div>Kept: <span id="keptCount">0</span> / <span id="keepTargetDisplay">0</span></div>
+        <div>Discarded: <span id="discardCount">0</span></div>
       </div>
+
       <div class="barOuter">
-        <div id="fundBar" class="barInner"></div>
+        <div id="keepBar" class="barInner"></div>
       </div>
 
       <div class="infoRow">
@@ -166,23 +158,32 @@ pre{
         <div id="slotB" class="slot"></div>
       </div>
 
-      <button class="btn" onclick="keep('A')">KEEP LEFT (Collection)</button>
-      <button class="btn" onclick="keep('B')">KEEP RIGHT (Collection)</button>
+      <button class="btn" onclick="chooseKeep('A')">KEEP LEFT</button>
+      <button class="btn" onclick="chooseKeep('B')">KEEP RIGHT</button>
 
-      <button class="btn" onclick="sell('A')">SELL LEFT (Dishwasher Fund)</button>
-      <button class="btn" onclick="sell('B')">SELL RIGHT (Dishwasher Fund)</button>
+      <button class="btn" onclick="forceKeep('A')">FORCE KEEP LEFT</button>
+      <button class="btn" onclick="forceKeep('B')">FORCE KEEP RIGHT</button>
 
-      <button class="btn" onclick="binItem('A')">BIN LEFT (Broken/Junk)</button>
-      <button class="btn" onclick="binItem('B')">BIN RIGHT (Broken/Junk)</button>
+      <button class="btn" onclick="discardItem('A')">DISCARD LEFT</button>
+      <button class="btn" onclick="discardItem('B')">DISCARD RIGHT</button>
 
-      <button class="btn" onclick="undo()">UNDO</button>
-      <button class="btn" onclick="endEarly()">End Session</button>
+      <button class="btn" onclick="undo()">BACK (Undo)</button>
+      <button class="btn" onclick="endSession()">End Session</button>
     </div>
 
     <!-- RESULTS -->
     <div id="resultsScreen" class="hidden">
       <h2>Quest Summary</h2>
       <pre id="resultsText"></pre>
+
+      <h3 style="text-align:center;">Text to send to your wife</h3>
+      <textarea id="exportBox" readonly></textarea>
+      <button class="btn" onclick="copyExport()">Copy to Clipboard</button>
+
+      <h3 style="text-align:center;">AI Valuation Prompt</h3>
+      <textarea id="aiPromptBox" readonly></textarea>
+      <button class="btn" onclick="copyAIPrompt()">Copy AI Prompt</button>
+
       <button class="btn" onclick="backToHome()">Back to Start</button>
     </div>
 
@@ -190,15 +191,15 @@ pre{
 </div>
 
 <script>
+const STORAGE_KEY = "dishwasherQuestPaul";
+
 let items = [];
 let index = 0;
-let goal = 0;
+let keepTarget = 0;
 
-let keepList = [];
-let sellList = [];
-let binList = [];
+let kept = [];
+let discarded = [];
 
-let fund = 0;
 let approval = 0;
 let space = 0;
 
@@ -213,41 +214,97 @@ function show(id){
 
 function startQuest(){
   const raw = document.getElementById("itemInput").value.trim();
-  const g = parseInt(document.getElementById("goalInput").value);
+  const target = parseInt(document.getElementById("keepTargetInput").value);
 
   if(!raw){
-    alert("Paste some toys first, mate.");
+    alert("Paste some toys first.");
     return;
   }
-  if(!g || g<=0){
-    alert("Set a dishwasher goal in £ (e.g. 300).");
+  if(!target || target<=0){
+    alert("Set how many toys are allowed to stay.");
     return;
   }
 
   items = raw.split("\n").map(x=>x.trim()).filter(Boolean);
-  if(items.length<2){
+  if(items.length < 2){
     alert("You need at least 2 toys to compare.");
     return;
   }
+  if(target > items.length){
+    alert("Keep target can’t be more than the number of toys.");
+    return;
+  }
 
-  goal = g;
+  keepTarget = target;
   index = 0;
-  keepList = [];
-  sellList = [];
-  binList = [];
-  fund = 0;
+  kept = [];
+  discarded = [];
   approval = 0;
   space = 0;
   history = [];
 
-  document.getElementById("goalDisplay").textContent = goal;
-  updateBars();
+  document.getElementById("keepTargetDisplay").textContent = keepTarget;
+  updateStats();
+  loadPair();
+  saveState();
+  show("gameScreen");
+}
+
+function loadSaved(){
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if(!saved){
+    alert("No saved session found.");
+    return;
+  }
+  const s = JSON.parse(saved);
+  items = s.items;
+  index = s.index;
+  keepTarget = s.keepTarget;
+  kept = s.kept;
+  discarded = s.discarded;
+  approval = s.approval;
+  space = s.space;
+  history = [];
+
+  document.getElementById("keepTargetDisplay").textContent = keepTarget;
+  updateStats();
   loadPair();
   show("gameScreen");
 }
 
+function resetAll(){
+  if(!confirm("Reset everything and clear saved progress?")){
+    return;
+  }
+  localStorage.removeItem(STORAGE_KEY);
+  items = [];
+  kept = [];
+  discarded = [];
+  index = 0;
+  keepTarget = 0;
+  approval = 0;
+  space = 0;
+  history = [];
+  document.getElementById("itemInput").value = "";
+  document.getElementById("keepTargetInput").value = "";
+  alert("Reset complete.");
+}
+
+function saveState(){
+  const s = {
+    items,
+    index,
+    keepTarget,
+    kept,
+    discarded,
+    approval,
+    space
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
+
 function loadPair(){
-  if(index >= items.length){
+  if(kept.length >= keepTarget || index >= items.length){
     finishQuest();
     return;
   }
@@ -260,10 +317,8 @@ function loadPair(){
 function pushHistory(){
   history.push({
     index,
-    keep:[...keepList],
-    sell:[...sellList],
-    bin:[...binList],
-    fund,
+    kept:[...kept],
+    discarded:[...discarded],
     approval,
     space
   });
@@ -272,50 +327,37 @@ function pushHistory(){
 function advance(){
   index += 2;
   loadPair();
-  updateBars();
-}
-
-function randomValue(){
-  // pretend eBay roulette
-  return Math.floor(3 + Math.random()*28); // £3–£30
+  updateStats();
+  saveState();
 }
 
 function bumpApproval(){
-  // cap at 100
   approval = Math.min(100, approval + 3);
 }
-
 function bumpSpace(){
   space += 1;
 }
 
-function keep(side){
+function chooseKeep(side){
   pushHistory();
   const item = (side==="A") ? items[index] : items[index+1];
-  if(item) keepList.push(item);
+  if(item && !kept.includes(item)) kept.push(item);
   advance();
 }
 
-function sell(side){
+function forceKeep(side){
   pushHistory();
   const item = (side==="A") ? items[index] : items[index+1];
-  if(item){
-    sellList.push(item);
-    const val = randomValue();
-    fund += val;
-    bumpApproval();
-    bumpSpace();
-  }
+  if(item && !kept.includes(item)) kept.push(item);
   advance();
 }
 
-function binItem(side){
+function discardItem(side){
   pushHistory();
   const item = (side==="A") ? items[index] : items[index+1];
-  if(item){
-    binList.push(item);
-    bumpSpace();
-  }
+  if(item && !discarded.includes(item)) discarded.push(item);
+  bumpApproval();
+  bumpSpace();
   advance();
 }
 
@@ -323,62 +365,98 @@ function undo(){
   const last = history.pop();
   if(!last) return;
   index = last.index;
-  keepList = last.keep;
-  sellList = last.sell;
-  binList = last.bin;
-  fund = last.fund;
+  kept = last.kept;
+  discarded = last.discarded;
   approval = last.approval;
   space = last.space;
   loadPair();
-  updateBars();
+  updateStats();
+  saveState();
 }
 
-function updateBars(){
-  document.getElementById("fundDisplay").textContent = fund;
+function updateStats(){
+  document.getElementById("keptCount").textContent = kept.length;
+  document.getElementById("discardCount").textContent = discarded.length;
   document.getElementById("approvalDisplay").textContent = approval;
   document.getElementById("spaceDisplay").textContent = space;
 
-  const fundPct = Math.max(0, Math.min(100, (fund/goal)*100));
-  document.getElementById("fundBar").style.width = fundPct + "%";
+  const keepPct = Math.max(0, Math.min(100, (kept.length/keepTarget)*100));
+  document.getElementById("keepBar").style.width = keepPct + "%";
   document.getElementById("approvalBar").style.width = approval + "%";
 }
 
-function endEarly(){
-  if(confirm("End Dishwasher Quest now?")){
+function endSession(){
+  if(confirm("End this session and see your progress?")){
     finishQuest();
   }
 }
 
 function finishQuest(){
-  const remaining = items.slice(index);
-  // anything not touched yet is effectively undecided; treat as keep by default
-  remaining.forEach(i=>{
-    if(i && !keepList.includes(i) && !sellList.includes(i) && !binList.includes(i)){
-      keepList.push(i);
+  // Anything not in kept or discarded yet is treated as kept by default
+  const decided = new Set([...kept, ...discarded]);
+  items.forEach(i=>{
+    if(!decided.has(i) && kept.length < keepTarget){
+      kept.push(i);
+    }else if(!decided.has(i)){
+      discarded.push(i);
     }
   });
 
-  let status = "";
-  if(fund >= goal){
-    status = "RESULT: Dishwasher Fund Achieved.\nYou absolute legend.\n\n";
-  }else{
-    status = "RESULT: Dishwasher Fund Not Yet Reached.\nBut you’ve started, which is more than most.\n\n";
-  }
+  updateStats();
+  saveState();
 
   const text =
-    status +
-    "Dishwasher Fund: £"+fund+" / £"+goal+"\n" +
-    "Wife Approval Meter: "+approval+"%\n" +
-    "Conservatory Space Reclaimed: "+space+" pts\n\n" +
-    "KEEP (Personal Collection):\n" +
-    (keepList.length ? keepList.join("\n") : "None") +
-    "\n\nSELL (List these for cash):\n" +
-    (sellList.length ? sellList.join("\n") : "None") +
-    "\n\nBIN / DONATE:\n" +
-    (binList.length ? binList.join("\n") : "None");
+    "Dishwasher Quest – Progress Report\n\n" +
+    "Total items: " + items.length + "\n" +
+    "Kept: " + kept.length + " / " + keepTarget + "\n" +
+    "Discarded/To Go: " + discarded.length + "\n" +
+    "Wife Approval: " + approval + "%\n" +
+    "Conservatory Space Reclaimed: " + space + " pts\n\n" +
+    "KEPT (staying in the collection):\n" +
+    (kept.length ? kept.join("\n") : "None") +
+    "\n\nDISCARDED / TO GO (sell, donate, bin):\n" +
+    (discarded.length ? discarded.join("\n") : "None");
 
   document.getElementById("resultsText").textContent = text;
+
+  const exportMsg =
+    "Look what I’ve done!\n\n" +
+    "I’ve just played Dishwasher Quest and actually sorted some toys.\n\n" +
+    "Kept: " + kept.length + " / " + keepTarget + "\n" +
+    "Discarded/To Go: " + discarded.length + "\n" +
+    "Space Reclaimed: " + space + " points\n\n" +
+    "Kept list:\n" +
+    (kept.length ? kept.join("\n") : "None") +
+    "\n\nTo go (sell/donate/bin):\n" +
+    (discarded.length ? discarded.join("\n") : "None");
+
+  document.getElementById("exportBox").value = exportMsg;
+
+  const aiPrompt =
+    "Please look up the current SOLD prices on eBay UK for the following vintage toys. " +
+    "Give me the average sold price for each item, and then total them. " +
+    "Only use SOLD listings, not active ones.\n\nItems:\n" +
+    (discarded.length ? discarded.map(i=>"- " + i).join("\n") : "- (none)");
+
+  document.getElementById("aiPromptBox").value = aiPrompt;
+
   show("resultsScreen");
+}
+
+function copyExport(){
+  const box = document.getElementById("exportBox");
+  box.select();
+  box.setSelectionRange(0, 99999);
+  document.execCommand("copy");
+  alert("Progress message copied. Paste it into a text to your wife.");
+}
+
+function copyAIPrompt(){
+  const box = document.getElementById("aiPromptBox");
+  box.select();
+  box.setSelectionRange(0, 99999);
+  document.execCommand("copy");
+  alert("AI valuation prompt copied. Paste it into ChatGPT.");
 }
 
 function backToHome(){
