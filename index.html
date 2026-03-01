@@ -102,7 +102,7 @@ pre{
   padding:8px;
   font-size:13px;
 }
-#exportBox{
+#exportBox,#aiPromptBox{
   width:100%;
   height:140px;
   margin-top:8px;
@@ -176,6 +176,15 @@ pre{
       <h2>Quest Summary</h2>
       <pre id="resultsText"></pre>
 
+      <h3 style="text-align:center;">Money Earned From Selling</h3>
+      <div style="display:flex;gap:6px;">
+        <input id="saleInput" type="number" placeholder="£ amount" style="flex:1;">
+        <button class="btn" onclick="addSale()">Add Sale</button>
+      </div>
+      <p style="text-align:center;margin-top:6px;">
+        Total Earned So Far: £<span id="earnedDisplay">0</span>
+      </p>
+
       <h3 style="text-align:center;">Text to send to your wife</h3>
       <textarea id="exportBox" readonly></textarea>
       <button class="btn" onclick="copyExport()">Copy to Clipboard</button>
@@ -202,6 +211,7 @@ let discarded = [];
 
 let approval = 0;
 let space = 0;
+let earned = 0; // real money total
 
 let history = [];
 
@@ -241,6 +251,7 @@ function startQuest(){
   discarded = [];
   approval = 0;
   space = 0;
+  earned = 0;
   history = [];
 
   document.getElementById("keepTargetDisplay").textContent = keepTarget;
@@ -257,13 +268,14 @@ function loadSaved(){
     return;
   }
   const s = JSON.parse(saved);
-  items = s.items;
-  index = s.index;
-  keepTarget = s.keepTarget;
-  kept = s.kept;
-  discarded = s.discarded;
-  approval = s.approval;
-  space = s.space;
+  items = s.items || [];
+  index = s.index || 0;
+  keepTarget = s.keepTarget || 0;
+  kept = s.kept || [];
+  discarded = s.discarded || [];
+  approval = s.approval || 0;
+  space = s.space || 0;
+  earned = s.earned || 0;
   history = [];
 
   document.getElementById("keepTargetDisplay").textContent = keepTarget;
@@ -284,6 +296,7 @@ function resetAll(){
   keepTarget = 0;
   approval = 0;
   space = 0;
+  earned = 0;
   history = [];
   document.getElementById("itemInput").value = "";
   document.getElementById("keepTargetInput").value = "";
@@ -298,7 +311,8 @@ function saveState(){
     kept,
     discarded,
     approval,
-    space
+    space,
+    earned
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
 }
@@ -320,7 +334,8 @@ function pushHistory(){
     kept:[...kept],
     discarded:[...discarded],
     approval,
-    space
+    space,
+    earned
   });
 }
 
@@ -369,6 +384,7 @@ function undo(){
   discarded = last.discarded;
   approval = last.approval;
   space = last.space;
+  earned = last.earned;
   loadPair();
   updateStats();
   saveState();
@@ -380,7 +396,7 @@ function updateStats(){
   document.getElementById("approvalDisplay").textContent = approval;
   document.getElementById("spaceDisplay").textContent = space;
 
-  const keepPct = Math.max(0, Math.min(100, (kept.length/keepTarget)*100));
+  const keepPct = keepTarget ? Math.max(0, Math.min(100, (kept.length/keepTarget)*100)) : 0;
   document.getElementById("keepBar").style.width = keepPct + "%";
   document.getElementById("approvalBar").style.width = approval + "%";
 }
@@ -392,7 +408,6 @@ function endSession(){
 }
 
 function finishQuest(){
-  // Anything not in kept or discarded yet is treated as kept by default
   const decided = new Set([...kept, ...discarded]);
   items.forEach(i=>{
     if(!decided.has(i) && kept.length < keepTarget){
@@ -411,20 +426,23 @@ function finishQuest(){
     "Kept: " + kept.length + " / " + keepTarget + "\n" +
     "Discarded/To Go: " + discarded.length + "\n" +
     "Wife Approval: " + approval + "%\n" +
-    "Conservatory Space Reclaimed: " + space + " pts\n\n" +
+    "Conservatory Space Reclaimed: " + space + " pts\n" +
+    "Real Money Earned So Far: £" + earned + "\n\n" +
     "KEPT (staying in the collection):\n" +
     (kept.length ? kept.join("\n") : "None") +
     "\n\nDISCARDED / TO GO (sell, donate, bin):\n" +
     (discarded.length ? discarded.join("\n") : "None");
 
   document.getElementById("resultsText").textContent = text;
+  document.getElementById("earnedDisplay").textContent = earned;
 
   const exportMsg =
     "Look what I’ve done!\n\n" +
     "I’ve just played Dishwasher Quest and actually sorted some toys.\n\n" +
     "Kept: " + kept.length + " / " + keepTarget + "\n" +
     "Discarded/To Go: " + discarded.length + "\n" +
-    "Space Reclaimed: " + space + " points\n\n" +
+    "Space Reclaimed: " + space + " points\n" +
+    "Real Money Earned: £" + earned + "\n\n" +
     "Kept list:\n" +
     (kept.length ? kept.join("\n") : "None") +
     "\n\nTo go (sell/donate/bin):\n" +
@@ -441,6 +459,18 @@ function finishQuest(){
   document.getElementById("aiPromptBox").value = aiPrompt;
 
   show("resultsScreen");
+}
+
+function addSale(){
+  const val = parseFloat(document.getElementById("saleInput").value);
+  if(!val || val <= 0){
+    alert("Enter a valid amount.");
+    return;
+  }
+  earned += val;
+  document.getElementById("earnedDisplay").textContent = earned;
+  document.getElementById("saleInput").value = "";
+  saveState();
 }
 
 function copyExport(){
