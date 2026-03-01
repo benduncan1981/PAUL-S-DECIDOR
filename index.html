@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dishwasher Quest</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:monospace;
+  background:#050510;
+  color:#f8f8ff;
+  user-select:none;
+}
+#app{
+  width:100vw;
+  height:100vh;
+  padding:10px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.05) 0px,
+      rgba(255,255,255,0.05) 1px,
+      transparent 2px,
+      transparent 4px
+    );
+}
+
+/* Headline */
+h1,h2{
+  margin:5px 0;
+  text-align:center;
+  text-shadow:0 0 6px #00ffff;
+}
+
+/* Buttons */
+.btn{
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  background:#202060;
+  border:3px solid #00ffff;
+  color:#f8f8ff;
+  font-size:16px;
+}
+.btn:active{
+  background:#101040;
+}
+
+/* Inputs */
+textarea,input{
+  width:100%;
+  margin:5px 0;
+  padding:8px;
+  font-size:14px;
+  border:2px solid #00ffff;
+  background:#101020;
+  color:#f8f8ff;
+}
+
+/* Layout */
+.hidden{display:none;}
+
+.slot-row{
+  display:flex;
+  justify-content:space-between;
+  margin-top:10px;
+}
+.slot{
+  width:48%;
+  height:120px;
+  background:#101020;
+  border:3px solid #ff00ff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:5px;
+  font-size:15px;
+}
+
+/* Progress bars */
+.barOuter{
+  width:100%;
+  height:16px;
+  background:#101020;
+  border:2px solid #00ffff;
+  margin:6px 0;
+}
+.barInner{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#00ffcc,#00ffff);
+}
+
+/* Info row */
+.infoRow{
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
+}
+
+/* Results */
+pre{
+  white-space:pre-wrap;
+  background:#101020;
+  border:2px solid #00ffff;
+  padding:8px;
+  font-size:13px;
+}
+
+/* Tiny CRT glow */
+#frame{
+  border:4px solid #00ffff;
+  box-shadow:0 0 20px #00ffff;
+  height:100%;
+  padding:8px;
+}
+</style>
+</head>
+
+<body>
+<div id="app">
+  <div id="frame">
+
+    <!-- HOME -->
+    <div id="homeScreen">
+      <h1>Dishwasher Quest</h1>
+      <p style="text-align:center;font-size:13px;">
+        Turn toys into a dishwasher. One decision at a time.
+      </p>
+
+      <textarea id="itemInput" rows="8"
+        placeholder="Enter toys (one per line)"></textarea>
+
+      <input id="goalInput" type="number"
+        placeholder="Dishwasher goal (£, e.g. 300)">
+
+      <button class="btn" onclick="startQuest()">Start Quest</button>
+    </div>
+
+    <!-- GAME -->
+    <div id="gameScreen" class="hidden">
+      <h2>Which toy wins?</h2>
+
+      <div class="infoRow">
+        <div>Dishwasher Fund: £<span id="fundDisplay">0</span></div>
+        <div>Goal: £<span id="goalDisplay">0</span></div>
+      </div>
+      <div class="barOuter">
+        <div id="fundBar" class="barInner"></div>
+      </div>
+
+      <div class="infoRow">
+        <div>Wife Approval: <span id="approvalDisplay">0</span>%</div>
+        <div>Space Reclaimed: <span id="spaceDisplay">0</span> pts</div>
+      </div>
+      <div class="barOuter">
+        <div id="approvalBar" class="barInner"></div>
+      </div>
+
+      <div class="slot-row">
+        <div id="slotA" class="slot"></div>
+        <div id="slotB" class="slot"></div>
+      </div>
+
+      <button class="btn" onclick="keep('A')">KEEP LEFT (Collection)</button>
+      <button class="btn" onclick="keep('B')">KEEP RIGHT (Collection)</button>
+
+      <button class="btn" onclick="sell('A')">SELL LEFT (Dishwasher Fund)</button>
+      <button class="btn" onclick="sell('B')">SELL RIGHT (Dishwasher Fund)</button>
+
+      <button class="btn" onclick="binItem('A')">BIN LEFT (Broken/Junk)</button>
+      <button class="btn" onclick="binItem('B')">BIN RIGHT (Broken/Junk)</button>
+
+      <button class="btn" onclick="undo()">UNDO</button>
+      <button class="btn" onclick="endEarly()">End Session</button>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="resultsScreen" class="hidden">
+      <h2>Quest Summary</h2>
+      <pre id="resultsText"></pre>
+      <button class="btn" onclick="backToHome()">Back to Start</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let items = [];
+let index = 0;
+let goal = 0;
+
+let keepList = [];
+let sellList = [];
+let binList = [];
+
+let fund = 0;
+let approval = 0;
+let space = 0;
+
+let history = [];
+
+function show(id){
+  document.getElementById("homeScreen").classList.add("hidden");
+  document.getElementById("gameScreen").classList.add("hidden");
+  document.getElementById("resultsScreen").classList.add("hidden");
+  document.getElementById(id).classList.remove("hidden");
+}
+
+function startQuest(){
+  const raw = document.getElementById("itemInput").value.trim();
+  const g = parseInt(document.getElementById("goalInput").value);
+
+  if(!raw){
+    alert("Paste some toys first, mate.");
+    return;
+  }
+  if(!g || g<=0){
+    alert("Set a dishwasher goal in £ (e.g. 300).");
+    return;
+  }
+
+  items = raw.split("\n").map(x=>x.trim()).filter(Boolean);
+  if(items.length<2){
+    alert("You need at least 2 toys to compare.");
+    return;
+  }
+
+  goal = g;
+  index = 0;
+  keepList = [];
+  sellList = [];
+  binList = [];
+  fund = 0;
+  approval = 0;
+  space = 0;
+  history = [];
+
+  document.getElementById("goalDisplay").textContent = goal;
+  updateBars();
+  loadPair();
+  show("gameScreen");
+}
+
+function loadPair(){
+  if(index >= items.length){
+    finishQuest();
+    return;
+  }
+  const a = items[index] || "(no item)";
+  const b = items[index+1] || "(no item)";
+  document.getElementById("slotA").textContent = a;
+  document.getElementById("slotB").textContent = b;
+}
+
+function pushHistory(){
+  history.push({
+    index,
+    keep:[...keepList],
+    sell:[...sellList],
+    bin:[...binList],
+    fund,
+    approval,
+    space
+  });
+}
+
+function advance(){
+  index += 2;
+  loadPair();
+  updateBars();
+}
+
+function randomValue(){
+  // pretend eBay roulette
+  return Math.floor(3 + Math.random()*28); // £3–£30
+}
+
+function bumpApproval(){
+  // cap at 100
+  approval = Math.min(100, approval + 3);
+}
+
+function bumpSpace(){
+  space += 1;
+}
+
+function keep(side){
+  pushHistory();
+  const item = (side==="A") ? items[index] : items[index+1];
+  if(item) keepList.push(item);
+  advance();
+}
+
+function sell(side){
+  pushHistory();
+  const item = (side==="A") ? items[index] : items[index+1];
+  if(item){
+    sellList.push(item);
+    const val = randomValue();
+    fund += val;
+    bumpApproval();
+    bumpSpace();
+  }
+  advance();
+}
+
+function binItem(side){
+  pushHistory();
+  const item = (side==="A") ? items[index] : items[index+1];
+  if(item){
+    binList.push(item);
+    bumpSpace();
+  }
+  advance();
+}
+
+function undo(){
+  const last = history.pop();
+  if(!last) return;
+  index = last.index;
+  keepList = last.keep;
+  sellList = last.sell;
+  binList = last.bin;
+  fund = last.fund;
+  approval = last.approval;
+  space = last.space;
+  loadPair();
+  updateBars();
+}
+
+function updateBars(){
+  document.getElementById("fundDisplay").textContent = fund;
+  document.getElementById("approvalDisplay").textContent = approval;
+  document.getElementById("spaceDisplay").textContent = space;
+
+  const fundPct = Math.max(0, Math.min(100, (fund/goal)*100));
+  document.getElementById("fundBar").style.width = fundPct + "%";
+  document.getElementById("approvalBar").style.width = approval + "%";
+}
+
+function endEarly(){
+  if(confirm("End Dishwasher Quest now?")){
+    finishQuest();
+  }
+}
+
+function finishQuest(){
+  const remaining = items.slice(index);
+  // anything not touched yet is effectively undecided; treat as keep by default
+  remaining.forEach(i=>{
+    if(i && !keepList.includes(i) && !sellList.includes(i) && !binList.includes(i)){
+      keepList.push(i);
+    }
+  });
+
+  let status = "";
+  if(fund >= goal){
+    status = "RESULT: Dishwasher Fund Achieved.\nYou absolute legend.\n\n";
+  }else{
+    status = "RESULT: Dishwasher Fund Not Yet Reached.\nBut you’ve started, which is more than most.\n\n";
+  }
+
+  const text =
+    status +
+    "Dishwasher Fund: £"+fund+" / £"+goal+"\n" +
+    "Wife Approval Meter: "+approval+"%\n" +
+    "Conservatory Space Reclaimed: "+space+" pts\n\n" +
+    "KEEP (Personal Collection):\n" +
+    (keepList.length ? keepList.join("\n") : "None") +
+    "\n\nSELL (List these for cash):\n" +
+    (sellList.length ? sellList.join("\n") : "None") +
+    "\n\nBIN / DONATE:\n" +
+    (binList.length ? binList.join("\n") : "None");
+
+  document.getElementById("resultsText").textContent = text;
+  show("resultsScreen");
+}
+
+function backToHome(){
+  show("homeScreen");
+}
+</script>
+</body>
+</html>
