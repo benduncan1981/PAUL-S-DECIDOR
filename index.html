@@ -51,12 +51,12 @@ textarea,input{
 }
 .btn{
   width:100%;
-  padding:10px;
-  margin:5px 0;
+  padding:12px;
+  margin:6px 0;
   background:#202060;
   border:3px solid #00ffff;
   color:#f8f8ff;
-  font-size:16px;
+  font-size:18px;
 }
 .btn:active{background:#101040;}
 
@@ -67,7 +67,7 @@ textarea,input{
 }
 .slot{
   width:48%;
-  height:120px;
+  height:130px;
   background:#101020;
   border:3px solid #ff00ff;
   display:flex;
@@ -75,12 +75,12 @@ textarea,input{
   justify-content:center;
   text-align:center;
   padding:5px;
-  font-size:15px;
+  font-size:16px;
 }
 
 .barOuter{
   width:100%;
-  height:16px;
+  height:18px;
   background:#101020;
   border:2px solid #00ffff;
   margin:6px 0;
@@ -106,6 +106,17 @@ pre{
   width:100%;
   height:140px;
   margin-top:8px;
+}
+
+/* Big money input */
+#saleInput{
+  width:100%;
+  font-size:22px;
+  padding:14px;
+  height:60px;
+  border:3px solid #00ffff;
+  background:#101020;
+  color:#f8f8ff;
 }
 </style>
 </head>
@@ -177,10 +188,8 @@ pre{
       <pre id="resultsText"></pre>
 
       <h3 style="text-align:center;">Money Earned From Selling</h3>
-      <div style="display:flex;gap:6px;">
-        <input id="saleInput" type="number" placeholder="£ amount" style="flex:1;">
-        <button class="btn" onclick="addSale()">Add Sale</button>
-      </div>
+      <input id="saleInput" type="number" placeholder="£ amount">
+      <button class="btn" onclick="addSale()">Add Sale</button>
       <p style="text-align:center;margin-top:6px;">
         Total Earned So Far: £<span id="earnedDisplay">0</span>
       </p>
@@ -211,7 +220,7 @@ let discarded = [];
 
 let approval = 0;
 let space = 0;
-let earned = 0; // real money total
+let earned = 0;
 
 let history = [];
 
